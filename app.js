@@ -92,6 +92,13 @@ function machineLine(d) {
   return 'VTP1 ' + JSON.stringify(d);
 }
 
+// Same line in pure ASCII: every other character becomes a JSON \uXXXX escape.
+// Many QR scanners garble raw UTF-8 (umlauts vanish); JSON parsers turn the
+// escapes back into the original characters, so nothing is lost.
+function asciiJson(json) {
+  return json.replace(/[^\x20-\x7e]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+}
+
 // QR code of `text` as an inline SVG element (null if the library is missing or the text is too long).
 function qrSvg(text) {
   if (typeof qrcode !== 'function') return null;
@@ -146,7 +153,7 @@ function buildLabel(d, dir) {
   const dimsField = field('top', 'Frame Size:', 'L × W × H in cm', dims);
   dimsField.querySelector('.v').classList.add('dims');
 
-  const qr = qrSvg(machineLine(d));
+  const qr = qrSvg(asciiJson(machineLine(d)));
 
   const options = [
     d.flags.length ? h('div.flagrow', d.flags.map((f) => h('span.flag', f))) : null,

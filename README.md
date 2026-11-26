@@ -25,7 +25,8 @@ themself with `info@luxeria.ch` in CC.
 ## Collecting the sheets
 
 Every mail ends with a line starting with `VTP1 ` followed by the item as JSON,
-and the QR code on each label holds that same line,
+and the QR code on each label holds that same line (with non-ASCII characters
+written as JSON `\uXXXX` escapes, which any JSON parser turns back into umlauts),
 so the collected mails can be turned into one list for load planning and the
 Carnet ATA. The `FCS` on the label is a CRC32 over the same data and identifies
 the sheet.
