@@ -21,7 +21,7 @@
   <img src="transalpin-bahnhofsschild-primitive.svg" alt="Transalpin">
   <div>
     <h1>VAN-Transport-Protocol</h1>
-    <p>Register your goods for the Transalpin van and print the labels for your container.</p>
+    <p>Register your containers for the Transalpin van and print their labels.</p>
   </div>
   <div class="theme-switch" role="group" aria-label="Colour theme">
     <button type="button" data-theme-choice="light">Light</button>
@@ -30,6 +30,13 @@
 </header>
 
 <main>
+  <aside class="col-side no-print" aria-label="Your containers">
+    <h2>Your containers</h2>
+    <ul id="containers"></ul>
+    <button type="button" id="btnNewSide">+ New container</button>
+    <p class="hint">Saved in this browser only. Click a status to change it.</p>
+  </aside>
+
   <div class="col-form no-print">
 
     <div class="step">
@@ -40,7 +47,8 @@
       <ul>
         <li><strong>One closed, sturdy container per label</strong> - box, crate or case. No loose items, no open bags, no "it's just a cable".</li>
         <li>It must survive being <strong>stacked, pushed and driven 900&nbsp;km</strong>. Pad fragile content and close the lid for real (tape, straps, latches).</li>
-        <li>Each container needs its <strong>own registration and its own labels</strong>. Several containers = fill in the form several times.</li>
+        <li>Each container needs its <strong>own registration and its own labels</strong>. Several containers = add several containers in the list on the left.</li>
+        <li><strong>List what is inside, precisely.</strong> Customs checks the content against the Carnet ATA, so "box with phones" is not enough.</li>
         <li>Stick the label on a <strong>side that stays visible</strong> when stacked - not on the top, not on the bottom.</li>
       </ul>
       <p>Improperly packaged frames may be dropped at ingress by the van crew.</p>
@@ -51,16 +59,35 @@
 
     <form id="form" novalidate>
     <div class="step">
-      <h2 class="step-title">Fill out the form <small>one form per container</small></h2>
+      <h2 class="step-title">Fill out the form <small>one container at a time</small></h2>
+
+      <fieldset>
+        <legend>FRAME <small>The container itself</small></legend>
+        <label>Name
+          <input id="name" placeholder="e.g. Telefonkiste" required maxlength="40" autocomplete="off">
+          <span class="hint">A short name for this box, crate or single big item. It is printed on the label.</span>
+        </label>
+        <label>Weight <small>in kilograms, packed</small>
+          <span class="unit"><input id="weight" type="number" min="0.1" max="500" step="0.1" required inputmode="decimal"><i>kg</i></span>
+        </label>
+        <label>Frame Size <small>L × W × H in cm, outer dimensions of the container</small>
+          <span class="dims">
+            <input id="dimL" type="number" min="1" max="500" step="1" required placeholder="L" aria-label="Length in cm" inputmode="numeric"> ×
+            <input id="dimW" type="number" min="1" max="500" step="1" required placeholder="W" aria-label="Width in cm" inputmode="numeric"> ×
+            <input id="dimH" type="number" min="1" max="500" step="1" required placeholder="H" aria-label="Height in cm" inputmode="numeric"> <i>cm</i>
+          </span>
+        </label>
+        <p class="hint">Weight and size are needed for load planning, the value of the content for the Carnet ATA (customs paper for crossing the border).</p>
+      </fieldset>
 
       <fieldset>
         <legend>DST ADDR <small>Where it goes</small></legend>
         <div class="grid2">
           <label>Location
-            <input id="dstLocation" value="Messe Hamburg" required maxlength="40">
+            <input id="dstLocation" required maxlength="40">
           </label>
           <label>Habitat
-            <input id="dstHabitat" value="Transalpin" required maxlength="40">
+            <input id="dstHabitat" required maxlength="40">
           </label>
         </div>
         <label>Assembly
@@ -73,33 +100,28 @@
       <fieldset>
         <legend>SRC ADDR <small>Where it is picked up</small></legend>
         <label>Aggregation point
-          <input id="srcAddr" value="Bitwäscherei, Zürich" required maxlength="60">
+          <input id="srcAddr" required maxlength="60">
           <span class="hint">The van loads at the Bitwäscherei in Zürich. Only change this if the van crew agreed to another pickup. This is also where your item returns to.</span>
         </label>
       </fieldset>
 
       <fieldset>
-        <legend>PAYLOAD <small>What is inside</small></legend>
-        <label>Content
-          <input id="payload" placeholder="e.g. 3D printer, LED matrix, tools" required maxlength="80">
-          <span class="hint">Short and honest - customs wants to know what is in the Carnet ATA.</span>
-        </label>
-        <div class="grid2">
-          <label>Weight <small>in kilograms</small>
-            <span class="unit"><input id="weight" type="number" min="0.1" max="500" step="0.1" required inputmode="decimal"><i>kg</i></span>
-          </label>
-          <label>Value <small>estimated worth in CHF</small>
-            <span class="unit"><i>CHF</i><input id="value" type="number" min="0" step="1" required inputmode="numeric"></span>
-          </label>
+        <legend>PAYLOAD <small>What is inside, item by item</small></legend>
+        <p class="hint">Customs needs a precise list for the Carnet ATA. "Telefonkiste" is not enough: list every kind of item with brand and model, how many there are, and what one piece is worth. For example:</p>
+        <pre class="example">4 × Yealink T46G, CHF 80
+6 × Gigaset DECT Handset mit Ladeschale, CHF 50
+1 × Bakelit Telefon (1950), CHF 50
+1 × Logitech Maus/Tastatur, CHF 15
+2 × LED Lichterkette, CHF 10</pre>
+        <div class="item-row item-head" aria-hidden="true">
+          <span>Qty</span><span>Description (brand, model)</span><span>CHF / piece</span><span>Total</span><span></span>
         </div>
-        <label>Frame Size <small>L × W × H in cm, outer dimensions of the container</small>
-          <span class="dims">
-            <input id="dimL" type="number" min="1" max="500" step="1" required placeholder="L" aria-label="Length in cm" inputmode="numeric"> ×
-            <input id="dimW" type="number" min="1" max="500" step="1" required placeholder="W" aria-label="Width in cm" inputmode="numeric"> ×
-            <input id="dimH" type="number" min="1" max="500" step="1" required placeholder="H" aria-label="Height in cm" inputmode="numeric"> <i>cm</i>
-          </span>
-        </label>
-        <p class="hint">A rough estimate of the value is fine. We need it, together with weight and size, for load planning and to file the Carnet ATA (customs paper for crossing the border).</p>
+        <div id="items"></div>
+        <div class="actions">
+          <button type="button" id="btnAddItem">+ Add item</button>
+        </div>
+        <p class="total">Total value: <b id="totalValue">CHF 0</b></p>
+        <p class="hint">A single big item is simply a list with one line. Rough estimates of the value are fine. The list is printed on its own sheet that goes inside the container.</p>
       </fieldset>
 
       <fieldset>
@@ -143,7 +165,7 @@
     </div>
 
     <div class="step">
-      <h2 class="step-title">Print the pages <small>2 × A4: way there and way back</small></h2>
+      <h2 class="step-title">Print the pages <small>2 labels + payload list</small></h2>
 
       <fieldset class="confirm">
         <label class="radio"><input type="checkbox" id="packed" required>
@@ -151,10 +173,14 @@
       </fieldset>
 
       <div class="actions">
-        <button type="submit" class="primary">Print labels (2 × A4)</button>
+        <button type="submit" class="primary">Print labels and payload list</button>
       </div>
       <p class="error" id="formError" role="alert" hidden></p>
-      <p class="hint">Page 1 is the <b>outbound</b> label: attach it now. Page 2 is the <b>return</b> label: put it inside the container or tape it behind the first one, and attach it in Hamburg before teardown.</p>
+      <p class="hint">Page 1 is the <b>outbound</b> label: attach it now. Page 2 is the <b>return</b> label: put it inside the container or tape it behind the first one, and attach it in Hamburg before teardown. Page 3 (and following, for long lists) is the <b>payload list</b>: put it inside the container, on top of the content.</p>
+      <p id="printNudge" class="nudge" hidden>Did the pages come out? Then tick "Printed" below and continue with step 4.</p>
+      <label class="radio status"><input type="checkbox" id="stPrinted">
+        <span><b>Printed</b> - the labels of this container are printed and attached.</span></label>
+      <p id="printedStale" class="error" hidden>You changed this container after marking it as printed. Please print it again - the FCS on the old label no longer matches.</p>
     </div>
     </form>
 
@@ -162,8 +188,7 @@
       <h2 class="step-title">E-mail the info <small>to yourself, CC info@luxeria.ch</small></h2>
 
     <section class="mail" id="mail">
-      <p id="mailNudge" class="nudge" hidden>Labels printed? Then one thing is left - without this mail we do not know your item exists.</p>
-      <p>Please send the transport sheet <strong>to yourself</strong> and put <strong><code>info@luxeria.ch</code> in CC</strong>.</p>
+            <p>Please send the transport sheet <strong>to yourself</strong> and put <strong><code>info@luxeria.ch</code> in CC</strong>.</p>
       <ul>
         <li><strong>Backup:</strong> if a label gets lost or torn off, we can still tell whose container it is - and so can you.</li>
         <li><strong>Planning:</strong> Luxeria collects all sheets into one list with value, weight and dimensions. That list is what the van crew uses for load planning and for the Carnet ATA.</li>
@@ -175,7 +200,11 @@
         <button type="button" class="primary" id="btnMail">Open e-mail draft</button>
         <button type="button" id="btnCopy">Copy sheet as text</button>
       </div>
-      <p class="hint">No mail program on this device? Use "Copy sheet as text" and paste it into a mail to yourself, CC <code>info@luxeria.ch</code>. Send one mail per container.</p>
+      <p class="hint">No mail program on this device, or the draft comes up empty or cut off (this can happen with long lists)? Use "Copy sheet as text" and paste it into a mail to yourself, CC <code>info@luxeria.ch</code>. Send one mail per container.</p>
+      <p id="mailNudge" class="nudge" hidden>Mail sent? Then tick "Mailed" below.</p>
+      <label class="radio status"><input type="checkbox" id="stMailed">
+        <span><b>Mailed</b> - the transport sheet of this container is sent.</span></label>
+      <p id="mailedStale" class="error" hidden>You changed this container after marking it as mailed. Please send the sheet again, so our list matches your label.</p>
       <p class="error" id="mailError" role="alert" hidden></p>
     </section>
     </div>
@@ -184,9 +213,9 @@
       <h2 class="step-title">Next container</h2>
 
     <section class="next">
-      <p>More than one container? Once the mail for this item is sent, start the next one. Addresses and contact are kept.</p>
+      <p>More than one container? Add the next one - addresses and contact are copied over. All your containers stay in the list on the left, with their status.</p>
       <div class="actions">
-        <button type="button" id="btnNew">Register another item</button>
+        <button type="button" id="btnNew">+ New container</button>
       </div>
     </section>
     </div>

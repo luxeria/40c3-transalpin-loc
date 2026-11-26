@@ -1,11 +1,15 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const STORE_KEY = 'transalpin-vtp-v1';
-const TEXT_FIELDS = ['dstLocation', 'dstHabitat', 'dstAssembly', 'srcAddr', 'payload', 'weight',
-  'value', 'dimL', 'dimW', 'dimH', 'cName', 'cDect', 'cMatrix', 'cPhone', 'notes', 'email'];
-// Cleared by "Register another item"; addresses and contact are kept.
-const PER_ITEM_FIELDS = ['payload', 'weight', 'value', 'dimL', 'dimW', 'dimH', 'notes'];
+const STORE_KEY = 'transalpin-vtp-v2';
+const OLD_STORE_KEY = 'transalpin-vtp-v1';
+
+// Text inputs whose element id equals the container property.
+const FIELDS = ['name', 'dstLocation', 'dstHabitat', 'dstAssembly', 'srcAddr', 'weight',
+  'dimL', 'dimW', 'dimH', 'cName', 'cDect', 'cMatrix', 'cPhone', 'notes'];
+// Carried over into a new container; everything else starts empty.
+const SHARED_FIELDS = ['dstLocation', 'dstHabitat', 'dstAssembly', 'srcAddr', 'cName', 'cDect', 'cMatrix', 'cPhone'];
+const DEFAULTS = { dstLocation: 'Messe Hamburg', dstHabitat: 'Transalpin', srcAddr: 'Bitwäscherei, Zürich' };
 
 const QOS = {
   EF: ['Expedited Forwarding', 'must arrive'],
@@ -36,39 +40,174 @@ function crc32(str) {
   return (~crc >>> 0).toString(16).toUpperCase().padStart(8, '0');
 }
 
-/* ---------- form state ---------- */
+const round2 = (n) => Math.round(n * 100) / 100;
+// 80 -> "80", 12.5 -> "12.50"
+const money = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 
-function readForm() {
-  const v = (id) => $(id).value.trim();
+/* ---------- state: all containers of this browser ---------- */
+
+let state = { currentId: '', email: '', containers: [] };
+
+function newContainer(from) {
+  const c = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    qos: '', flags: [], packed: false,
+    items: [{ qty: '1', desc: '', value: '' }],
+    printed: '', mailed: '', // FCS of the sheet at the time it was marked, '' = not done
+  };
+  for (const f of FIELDS) c[f] = '';
+  Object.assign(c, DEFAULTS);
+  if (from) for (const f of SHARED_FIELDS) c[f] = from[f];
+  return c;
+}
+
+const current = () => state.containers.find((c) => c.id === state.currentId) || state.containers[0];
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* private mode: no persistence */ }
+}
+
+function load() {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(STORE_KEY)); } catch { /* ignore broken data */ }
+  if (s && Array.isArray(s.containers) && s.containers.length) {
+    state = { currentId: s.currentId || '', email: s.email || '', containers: [] };
+    for (const saved of s.containers) {
+      const c = Object.assign(newContainer(), saved);
+      if (!Array.isArray(c.items) || !c.items.length) c.items = [{ qty: '1', desc: '', value: '' }];
+      if (!Array.isArray(c.flags)) c.flags = [];
+      state.containers.push(c);
+    }
+  } else {
+    const c = newContainer();
+    // Take over the single form of the first version of this page.
+    let old = null;
+    try { old = JSON.parse(localStorage.getItem(OLD_STORE_KEY)); } catch { /* ignore */ }
+    if (old) {
+      for (const f of FIELDS) if (typeof old[f] === 'string' && old[f] !== '') c[f] = old[f];
+      if (QOS[old.qos]) c.qos = old.qos;
+      if (Array.isArray(old.flags)) c.flags = old.flags;
+      if (old.payload) { c.name = old.payload; c.items = [{ qty: '1', desc: old.payload, value: old.value || '' }]; }
+      state.email = old.email || '';
+    }
+    state.containers = [c];
+  }
+  if (!state.containers.some((c) => c.id === state.currentId)) state.currentId = state.containers[0].id;
+}
+
+// What gets printed, mailed and encoded for one container.
+function sheetData(c) {
+  const t = (f) => String(c[f] || '').trim();
+  const items = c.items
+    .map((i) => [parseInt(i.qty, 10) || 0, String(i.desc || '').trim(), parseFloat(i.value) || 0])
+    .filter((i) => i[1]);
   const d = {
-    dstLocation: v('dstLocation'), dstHabitat: v('dstHabitat'), dstAssembly: v('dstAssembly'),
-    srcAddr: v('srcAddr'), payload: v('payload'),
-    weight: v('weight'), value: v('value'),
-    dimL: v('dimL'), dimW: v('dimW'), dimH: v('dimH'),
-    qos: document.querySelector('input[name=qos]:checked')?.value || '',
-    cName: v('cName'), cDect: v('cDect'), cMatrix: v('cMatrix'), cPhone: v('cPhone'),
-    flags: [...document.querySelectorAll('input[name=flag]:checked')].map((c) => c.value),
-    notes: v('notes'),
+    name: t('name'),
+    dstLocation: t('dstLocation'), dstHabitat: t('dstHabitat'), dstAssembly: t('dstAssembly'),
+    srcAddr: t('srcAddr'),
+    weight: t('weight'), dimL: t('dimL'), dimW: t('dimW'), dimH: t('dimH'),
+    qos: c.qos,
+    cName: t('cName'), cDect: t('cDect'), cMatrix: t('cMatrix'), cPhone: t('cPhone'),
+    flags: c.flags, notes: t('notes'),
+    items, // [quantity, description, CHF per piece]
+    value: round2(items.reduce((sum, i) => sum + i[0] * i[2], 0)),
   };
   // Frame check sequence: identifies this sheet, ties the label to the backup mail.
   d.fcs = '0x' + crc32(JSON.stringify(d));
   return d;
 }
 
-function save() {
-  const s = { qos: document.querySelector('input[name=qos]:checked')?.value || '' };
-  for (const id of TEXT_FIELDS) s[id] = $(id).value;
-  s.flags = [...document.querySelectorAll('input[name=flag]:checked')].map((c) => c.value);
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch { /* private mode: no persistence */ }
+const pieces = (d) => d.items.reduce((sum, i) => sum + i[0], 0);
+
+/* ---------- form <-> current container ---------- */
+
+function itemRow(item) {
+  const input = (cls, type, value, attrs) => {
+    const el = h('input.' + cls);
+    el.type = type;
+    el.value = value;
+    el.required = true;
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+  const del = h('button.plain.icon', '×');
+  del.type = 'button';
+  del.title = 'Remove this line';
+  del.setAttribute('aria-label', 'Remove this line');
+  del.dataset.action = 'remove-item';
+  return h('div.item-row',
+    input('i-qty', 'number', item.qty, { min: '1', max: '9999', step: '1', inputmode: 'numeric', placeholder: 'Qty', 'aria-label': 'Quantity' }),
+    input('i-desc', 'text', item.desc, { maxlength: '80', placeholder: 'e.g. Yealink T46G', 'aria-label': 'Description' }),
+    input('i-value', 'number', item.value, { min: '0', step: 'any', inputmode: 'decimal', placeholder: 'CHF', 'aria-label': 'Value per piece in CHF' }),
+    h('span.i-total'),
+    del);
 }
 
-function restore() {
-  let s;
-  try { s = JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return; }
-  if (!s) return;
-  for (const id of TEXT_FIELDS) if (typeof s[id] === 'string' && s[id] !== '') $(id).value = s[id];
-  for (const r of document.querySelectorAll('input[name=qos]')) r.checked = r.value === s.qos;
-  for (const c of document.querySelectorAll('input[name=flag]')) c.checked = (s.flags || []).includes(c.value);
+function renderItems(c) {
+  $('items').replaceChildren(...c.items.map(itemRow));
+}
+
+function containerToForm(c) {
+  for (const f of FIELDS) $(f).value = c[f];
+  for (const r of document.querySelectorAll('input[name=qos]')) r.checked = r.value === c.qos;
+  for (const cb of document.querySelectorAll('input[name=flag]')) cb.checked = c.flags.includes(cb.value);
+  $('packed').checked = !!c.packed;
+  $('email').value = state.email;
+  renderItems(c);
+}
+
+function formToContainer(c) {
+  for (const f of FIELDS) c[f] = $(f).value;
+  c.qos = document.querySelector('input[name=qos]:checked')?.value || '';
+  c.flags = [...document.querySelectorAll('input[name=flag]:checked')].map((cb) => cb.value);
+  c.packed = $('packed').checked;
+  c.items = [...document.querySelectorAll('#items .item-row')].map((row) => ({
+    qty: row.querySelector('.i-qty').value,
+    desc: row.querySelector('.i-desc').value,
+    value: row.querySelector('.i-value').value,
+  }));
+  state.email = $('email').value;
+}
+
+/* ---------- sidebar ---------- */
+
+// 'off' | 'on' | 'stale' (marked, but the container was changed afterwards)
+const statusOf = (mark, fcs) => (!mark ? 'off' : mark === fcs ? 'on' : 'stale');
+
+function statusChip(c, d, key, word) {
+  const st = statusOf(c[key], d.fcs);
+  const chip = h('button.plain.chip.' + st,
+    st === 'on' ? '✓ ' + word : st === 'stale' ? '! ' + word + ', then changed' : 'not ' + word);
+  chip.type = 'button';
+  chip.dataset.action = 'toggle-' + key;
+  chip.dataset.id = c.id;
+  chip.setAttribute('aria-pressed', String(st !== 'off'));
+  chip.title = st === 'off' ? `Mark as ${word}` : `Mark as not ${word}`;
+  return chip;
+}
+
+function renderSidebar() {
+  $('containers').replaceChildren(...state.containers.map((c) => {
+    const d = sheetData(c);
+    const select = h('button.plain.cont-select',
+      h('span.cont-name', d.name || 'Unnamed container'),
+      h('span.cont-sub', d.items.length
+        ? `${d.items.length} ${d.items.length === 1 ? 'line' : 'lines'}, ${pieces(d)} pcs - CHF ${money(d.value)}`
+        : 'no items yet'));
+    select.type = 'button';
+    select.dataset.action = 'select';
+    select.dataset.id = c.id;
+    const del = h('button.plain.icon', '×');
+    del.type = 'button';
+    del.title = 'Delete this container';
+    del.setAttribute('aria-label', `Delete container ${d.name || 'Unnamed container'}`);
+    del.dataset.action = 'delete';
+    del.dataset.id = c.id;
+    const li = h('li.cont', select,
+      h('div.cont-status', statusChip(c, d, 'printed', 'printed'), statusChip(c, d, 'mailed', 'mailed'), del));
+    if (c.id === state.currentId) { li.classList.add('current'); select.setAttribute('aria-current', 'true'); }
+    return li;
+  }));
 }
 
 /* ---------- label ---------- */
@@ -89,7 +228,7 @@ function ruler() {
 
 // The one-line machine-readable copy of a sheet: used in the mail and in the QR code.
 function machineLine(d) {
-  return 'VTP1 ' + JSON.stringify(d);
+  return 'VTP2 ' + JSON.stringify(d);
 }
 
 // Same line in pure ASCII: every other character becomes a JSON \uXXXX escape.
@@ -99,13 +238,13 @@ function asciiJson(json) {
   return json.replace(/[^\x20-\x7e]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
 }
 
-// QR code of `text` as an inline SVG element (null if the library is missing or the text is too long).
-function qrSvg(text) {
+// QR code of `text` as an inline SVG element; null if the text does not fit at this error correction level.
+function qrSvg(text, level) {
   if (typeof qrcode !== 'function') return null;
   let qr;
   try {
     qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
-    qr = qrcode(0, 'M'); // version: auto, error correction: medium
+    qr = qrcode(0, level); // version: auto
     qr.addData(text, 'Byte');
     qr.make();
   } catch { return null; }
@@ -128,9 +267,36 @@ function qrSvg(text) {
   return svg;
 }
 
-function buildLabel(d, dir) {
+// QR code for a sheet. Long item lists make the code too dense to scan from a
+// label, so above a size limit the items are left out (the mail has them all).
+const QR_MAX_CHARS = 1100;
+function sheetQr(d) {
+  const full = asciiJson(machineLine(d));
+  if (full.length <= QR_MAX_CHARS) {
+    const svg = qrSvg(full, 'M') || qrSvg(full, 'L');
+    if (svg) return { svg, complete: true };
+  }
+  const short = asciiJson(machineLine({ ...d, items: [], itemsOmitted: d.items.length }));
+  return { svg: qrSvg(short, 'M') || qrSvg(short, 'L'), complete: false };
+}
+
+function sheetHead(boxTitle, boxSub) {
+  const logo = h('img');
+  logo.src = 'transalpin-bahnhofsschild-primitive.svg';
+  logo.alt = 'Transalpin';
+  return h('div.head',
+    logo,
+    h('div.title', h('div.t1', 'VAN-Transport-Protocol'),
+      h('div.t2', `VTP/2.0 - ${CONFIG.event} - one frame = one properly packaged container`)),
+    h('div.dir', h('div.t1', boxTitle), h('div.t2', boxSub)));
+}
+
+const dash = (s) => s || '-';
+const dimsText = (d) => (d.dimL || d.dimW || d.dimH
+  ? `${dash(d.dimL)} × ${dash(d.dimW)} × ${dash(d.dimH)} cm` : '-');
+
+function buildLabel(d, dir, qr) {
   const out = dir === 'out';
-  const dash = (s) => s || '-';
 
   const eventAddr = [
     h('div.line', dash(d.dstLocation)),
@@ -139,21 +305,18 @@ function buildLabel(d, dir) {
   ];
   const homeAddr = [h('div.line.big', dash(d.srcAddr))];
 
-  const logo = h('img');
-  logo.src = 'transalpin-bahnhofsschild-primitive.svg';
-  logo.alt = 'Transalpin';
-
   const contact = [['Name', d.cName], ['DECT', d.cDect], ['Matrix', d.cMatrix], ['Phone', d.cPhone]]
     .filter(([, val]) => val)
     .map(([k, val]) => h('div.line', h('span.ck', k + ':'), val));
 
-  const dims = d.dimL || d.dimW || d.dimH
-    ? `${dash(d.dimL)} × ${dash(d.dimW)} × ${dash(d.dimH)} cm` : '-';
-
-  const dimsField = field('top', 'Frame Size:', 'L × W × H in cm', dims);
+  const dimsField = field('top', 'Frame Size:', 'L × W × H in cm', dimsText(d));
   dimsField.querySelector('.v').classList.add('dims');
 
-  const qr = qrSvg(asciiJson(machineLine(d)));
+  const payload = [
+    h('div.line.pname', dash(d.name)),
+    d.items.length ? h('div.line.psum',
+      `${d.items.length} ${d.items.length === 1 ? 'line' : 'lines'}, ${pieces(d)} pcs - see payload list`) : null,
+  ];
 
   const options = [
     d.flags.length ? h('div.flagrow', d.flags.map((f) => h('span.flag', f))) : null,
@@ -161,12 +324,7 @@ function buildLabel(d, dir) {
   ];
 
   return h('div.sheet', h('div.label',
-    h('div.head',
-      logo,
-      h('div.title', h('div.t1', 'VAN-Transport-Protocol'),
-        h('div.t2', `VTP/1.0 - ${CONFIG.event} - one frame = one properly packaged container`)),
-      h('div.dir', h('div.t1', out ? 'OUTBOUND' : 'RETURN'),
-        h('div.t2', out ? 'Label 1/2 - way there' : 'Label 2/2 - way back'))),
+    sheetHead(out ? 'OUTBOUND' : 'RETURN', out ? 'Label 1/2 - way there' : 'Label 2/2 - way back'),
     ruler(),
     h('div.row.r-addr',
       field('side', 'DST ADDR:', 'Where it goes', out ? eventAddr : homeAddr),
@@ -176,23 +334,93 @@ function buildLabel(d, dir) {
       dimsField,
       field('top', 'QoS Class:', 'EF = must arrive, AF = should arrive, BE = nice to have',
         d.qos ? [h('span.qos', d.qos), h('span.qosd', QOS[d.qos][1])] : '-'),
-      field('top', 'Value:', 'Estimated worth in CHF, relevant for Carnet ATA',
-        d.value ? 'CHF ' + d.value : '-')),
+      field('top', 'Value:', 'Sum of the payload list in CHF, relevant for Carnet ATA',
+        d.items.length ? 'CHF ' + money(d.value) : '-')),
     h('div.lower',
       h('div.row.r-who',
         field('stack', 'Reply-To:', 'Who to call about this', contact.length ? contact : '-'),
-        field('stack', 'Payload:', 'What is inside', dash(d.payload))),
+        field('stack', 'Payload:', 'What is inside', payload)),
       h('div.row.r-opt',
         field('side', 'Options:', 'Variable length, additional notes', options)),
-      h('div.f.qr', h('div.kd', h('div.k', 'Frame Dump:'), h('div.d', 'This sheet, machine-readable')), qr)),
+      h('div.f.qr',
+        h('div.kd', h('div.k', 'Frame Dump:'),
+          h('div.d', qr.complete ? 'This sheet, machine-readable' : 'Machine-readable, without payload list')),
+        qr.svg ? qr.svg.cloneNode(true) : null)),
     h('div.foot',
       h('div', h('b', 'FCS: ' + d.fcs), ' Frame check sequence - ID of this transport sheet'),
       h('div', `Label lost or found? ${CONFIG.collectorMail}`))));
 }
 
+// Third sheet: the precise content list for the Carnet ATA. Flows over several pages if needed.
+function buildPayloadList(d) {
+  const num = (text) => h('td.num', text);
+  const rows = d.items.map((it, i) => h('tr',
+    num(i + 1), num(it[0] + ' ×'), h('td', it[1]), num(money(it[2])), num(money(round2(it[0] * it[2])))));
+  if (!rows.length) rows.push(h('tr', h('td'), h('td'), h('td.empty', 'No items yet'), h('td'), h('td')));
+
+  const th = (cls, text) => h('th' + cls, text);
+  const table = h('table',
+    h('thead', h('tr', th('.num', 'Pos'), th('.num', 'Qty'), th('', 'Description'),
+      th('.num', 'CHF / piece'), th('.num', 'CHF total'))),
+    h('tbody', rows),
+    h('tfoot', h('tr', h('td'), num(pieces(d) + ' ×'), h('td', 'Total'), h('td'), num(money(d.value)))));
+
+  return h('div.sheet.list', h('div.label.plist',
+    sheetHead('PAYLOAD', 'Sheet 3 - goes inside'),
+    h('div.row.r-meta',
+      field('top', 'Container:', 'Name of this frame', dash(d.name)),
+      field('top', 'Assembly:', 'Who it belongs to', dash(d.dstAssembly)),
+      field('top', 'Reply-To:', 'Who to call about this', dash(d.cName)),
+      field('top', 'FCS:', 'Same ID as on the labels', d.fcs)),
+    table,
+    h('div.foot',
+      h('div', 'Put this list inside the container, on top of the content.'),
+      h('div', `Content list for the Carnet ATA - ${d.weight ? d.weight + ' kg' : '-'} - ${dimsText(d)}`))));
+}
+
+/* ---------- render everything that depends on the current container ---------- */
+
 function render() {
-  const d = readForm();
-  $('labels').replaceChildren(buildLabel(d, 'out'), buildLabel(d, 'back'));
+  const c = current();
+  const d = sheetData(c);
+  const qr = sheetQr(d);
+  $('labels').replaceChildren(buildLabel(d, 'out', qr), buildLabel(d, 'back', qr), buildPayloadList(d));
+
+  // Line totals and grand total in the form.
+  const rows = document.querySelectorAll('#items .item-row');
+  for (const row of rows) {
+    const qty = parseInt(row.querySelector('.i-qty').value, 10) || 0;
+    const value = parseFloat(row.querySelector('.i-value').value) || 0;
+    row.querySelector('.i-total').textContent = '= ' + money(round2(qty * value));
+    row.querySelector('[data-action=remove-item]').disabled = rows.length < 2;
+  }
+  $('totalValue').textContent = 'CHF ' + money(d.value);
+
+  // Status checkboxes in steps 3 and 4.
+  for (const [key, box, note] of [['printed', 'stPrinted', 'printedStale'], ['mailed', 'stMailed', 'mailedStale']]) {
+    const st = statusOf(c[key], d.fcs);
+    $(box).checked = st !== 'off';
+    $(note).hidden = st !== 'stale';
+  }
+
+  renderSidebar();
+}
+
+// Switch the form to the current container.
+function showCurrent() {
+  containerToForm(current());
+  $('form').classList.remove('validated');
+  $('mail').classList.remove('highlight');
+  for (const id of ['printNudge', 'mailNudge']) $(id).hidden = true;
+  showError('formError', '');
+  showError('mailError', '');
+  render();
+}
+
+function setStatus(c, key, on) {
+  c[key] = on ? sheetData(c).fcs : '';
+  save();
+  render();
 }
 
 /* ---------- transport sheet (mail backup) ---------- */
@@ -204,16 +432,20 @@ function sheetText(d) {
     'Transalpin VAN-Transport-Protocol - transport sheet',
     '',
     `FCS (ID):   ${d.fcs}`,
+    `CONTAINER:  ${d.name}`,
     `DST ADDR:   ${d.dstLocation} / Habitat: ${d.dstHabitat} / Assembly: ${d.dstAssembly}`,
     `SRC ADDR:   ${d.srcAddr}`,
-    `PAYLOAD:    ${d.payload}`,
     `WEIGHT:     ${d.weight} kg`,
     `FRAME SIZE: ${d.dimL} x ${d.dimW} x ${d.dimH} cm (L x W x H)`,
     `QOS CLASS:  ${d.qos}${QOS[d.qos] ? ` (${QOS[d.qos][1]})` : ''}`,
-    `VALUE:      CHF ${d.value}`,
     `REPLY-TO:   ${contact}`,
     `OPTIONS:    ${d.flags.join(', ') || '-'}`,
     `NOTES:      ${d.notes.replace(/\s*\n\s*/g, ' | ') || '-'}`,
+    '',
+    'PAYLOAD LIST:',
+    ...d.items.map((it, i) =>
+      `${String(i + 1).padStart(3)}. ${it[0]} x ${it[1]} - CHF ${money(it[2])} each = CHF ${money(round2(it[0] * it[2]))}`),
+    `VALUE:      CHF ${money(d.value)} total, ${pieces(d)} pieces`,
     '',
     'Machine-readable copy, please leave as is:',
     machineLine(d),
@@ -270,6 +502,16 @@ function initTheme() {
 
 /* ---------- wiring ---------- */
 
+function addContainer() {
+  const c = newContainer(current());
+  state.containers.push(c);
+  state.currentId = c.id;
+  save();
+  showCurrent();
+  $('name').closest('.step').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('name').focus({ preventScroll: true });
+}
+
 function init() {
   for (const name of CONFIG.assemblies) {
     const o = document.createElement('option');
@@ -283,10 +525,66 @@ function init() {
   }
 
   initTheme();
-  restore();
-  render();
+  load();
+  showCurrent();
 
-  document.addEventListener('input', () => { save(); render(); });
+  // Any edit goes straight into the current container and into the browser's storage.
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'stPrinted' || e.target.id === 'stMailed') return; // handled below
+    formToContainer(current());
+    save();
+    render();
+  });
+
+  $('stPrinted').addEventListener('change', (e) => setStatus(current(), 'printed', e.target.checked));
+  $('stMailed').addEventListener('change', (e) => setStatus(current(), 'mailed', e.target.checked));
+
+  // Sidebar: select, status chips, delete.
+  $('containers').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const c = state.containers.find((x) => x.id === btn.dataset.id);
+    if (!c) return;
+    const action = btn.dataset.action;
+    if (action === 'select') {
+      state.currentId = c.id;
+      save();
+      showCurrent();
+    } else if (action === 'toggle-printed' || action === 'toggle-mailed') {
+      const key = action.slice('toggle-'.length);
+      setStatus(c, key, !c[key]);
+    } else if (action === 'delete') {
+      const label = sheetData(c).name || 'Unnamed container';
+      if (!confirm(`Delete the container "${label}" from this browser? This cannot be undone.`)) return;
+      state.containers = state.containers.filter((x) => x !== c);
+      if (!state.containers.length) state.containers = [newContainer(c)];
+      if (state.currentId === c.id) state.currentId = state.containers[0].id;
+      save();
+      showCurrent();
+    }
+  });
+
+  $('btnNewSide').addEventListener('click', addContainer);
+  $('btnNew').addEventListener('click', addContainer);
+
+  // Items of the current container.
+  $('btnAddItem').addEventListener('click', () => {
+    const c = current();
+    formToContainer(c);
+    c.items.push({ qty: '1', desc: '', value: '' });
+    save();
+    renderItems(c);
+    render();
+    $('items').lastElementChild.querySelector('.i-desc').focus();
+  });
+  $('items').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action=remove-item]');
+    if (!btn) return;
+    btn.closest('.item-row').remove();
+    formToContainer(current());
+    save();
+    render();
+  });
 
   $('form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -297,9 +595,8 @@ function init() {
 
   window.addEventListener('afterprint', () => {
     if (!$('form').checkValidity()) return;
-    $('mailNudge').hidden = false;
+    $('printNudge').hidden = false;
     $('mail').classList.add('highlight');
-    $('mail').closest('.step').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   $('btnMail').addEventListener('click', () => {
@@ -310,38 +607,26 @@ function init() {
       email.focus();
       return;
     }
-    const d = readForm();
-    const subject = `[Transalpin VTP] ${d.dstAssembly} - ${d.cName} - ${d.payload} (${d.fcs})`;
+    const d = sheetData(current());
+    const subject = `[Transalpin VTP] ${d.dstAssembly} - ${d.cName} - ${d.name} (${d.fcs})`;
     location.href = `mailto:${encodeURIComponent(email.value.trim())}`
       + `?cc=${encodeURIComponent(CONFIG.collectorMail)}`
       + `&subject=${encodeURIComponent(subject)}`
       + `&body=${encodeURIComponent(sheetText(d))}`;
+    $('mailNudge').hidden = false;
   });
 
   $('btnCopy').addEventListener('click', async () => {
     if (!validate('mailError')) return;
-    const text = sheetText(readForm());
+    const text = sheetText(sheetData(current()));
     try {
       await navigator.clipboard.writeText(text);
       $('btnCopy').textContent = 'Copied ✓';
       setTimeout(() => { $('btnCopy').textContent = 'Copy sheet as text'; }, 2000);
+      $('mailNudge').hidden = false;
     } catch {
       showError('mailError', 'Copying was blocked by the browser. Please use "Open e-mail draft" instead.');
     }
-  });
-
-  $('btnNew').addEventListener('click', () => {
-    if (!confirm('Start the next item? Addresses and contact are kept; content, size, QoS and options are cleared.\n\nDid you already mail the sheet for the current item?')) return;
-    for (const id of PER_ITEM_FIELDS) $(id).value = '';
-    for (const el of document.querySelectorAll('input[name=qos], input[name=flag], #packed')) el.checked = false;
-    $('form').classList.remove('validated');
-    $('mail').classList.remove('highlight');
-    $('mailNudge').hidden = true;
-    showError('formError', '');
-    showError('mailError', '');
-    save();
-    render();
-    $('payload').focus();
   });
 }
 

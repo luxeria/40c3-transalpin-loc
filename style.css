@@ -42,21 +42,71 @@ a { color: inherit; }
 
 header.site {
   display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px;
-  padding: 28px 24px 48px; max-width: 1240px; margin: 0 auto;
+  padding: 28px 24px 48px; max-width: 1480px; margin: 0 auto;
 }
 header.site img { height: 68px; max-width: 100%; }
 header.site > div:not(.theme-switch) { flex: 1 1 300px; min-width: 0; }
 header.site p { margin: 0; color: var(--muted); }
 
 main {
-  display: grid; grid-template-columns: minmax(0, 700px) minmax(0, 420px); gap: 24px 64px;
+  display: grid; grid-template-columns: 230px minmax(0, 700px) minmax(0, 400px); gap: 24px 40px;
   justify-content: space-between;
-  padding: 0 24px 48px; max-width: 1240px; margin: 0 auto; align-items: start;
+  padding: 0 24px 48px; max-width: 1480px; margin: 0 auto; align-items: start;
 }
-@media (max-width: 1000px) {
-  main { grid-template-columns: minmax(0, 700px); justify-content: center; }
-  .col-preview { max-width: 440px; }
+@media (max-width: 1300px) {
+  /* preview moves below the form */
+  main { grid-template-columns: 230px minmax(0, 700px); justify-content: start; }
+  .col-preview { grid-column: 2; max-width: 440px; }
 }
+@media (max-width: 800px) {
+  /* container list on top */
+  main { grid-template-columns: minmax(0, 1fr); }
+  .col-preview { grid-column: 1; }
+}
+
+/* ---------- sidebar: container list ---------- */
+.col-side { position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
+@media (max-width: 800px) { .col-side { position: static; max-height: none; } }
+.col-side h2 { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+#containers { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.cont { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 6px; }
+.cont.current { border-color: var(--navy); border-left-color: #da0000; }
+button.plain, [data-theme=dark] button.plain {
+  background: transparent; border: 0; border-radius: 4px; padding: 0; color: inherit; font-weight: normal; text-align: left;
+}
+.cont-select { display: block; width: 100%; padding: 9px 10px 4px !important; }
+.cont-name { display: block; font-weight: 700; overflow-wrap: anywhere; }
+.cont-sub { display: block; color: var(--muted); font-size: .78rem; }
+.cont-status { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 2px 6px 8px 10px; }
+button.chip, [data-theme=dark] button.chip {
+  font-size: .72rem; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted);
+}
+button.chip.on, [data-theme=dark] button.chip.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+button.chip.stale, [data-theme=dark] button.chip.stale { border-color: var(--red); color: var(--red); font-weight: 600; }
+button.icon, [data-theme=dark] button.icon {
+  width: 28px; height: 28px; text-align: center; font-size: 1.15rem; line-height: 1; color: var(--muted);
+}
+button.icon:hover { color: var(--red); }
+button.icon:disabled { opacity: .3; cursor: default; }
+.cont-status .icon { margin-left: auto; }
+#btnNewSide { width: 100%; }
+
+/* ---------- item list in the form ---------- */
+.item-row { display: grid; grid-template-columns: 62px minmax(0, 1fr) 96px 78px 28px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.item-row input { margin-top: 0 !important; }
+.item-head { font-size: .78rem; font-weight: 600; color: var(--muted); margin: 14px 0 4px; }
+.i-total { font-size: .85rem; color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.total { font-size: 1.05rem; margin: 4px 0 8px; }
+pre.example {
+  font: .78rem/1.5 var(--mono); color: var(--muted); margin: 6px 0 4px; padding: 8px 10px;
+  background: var(--bg); border-radius: 4px; overflow-x: auto;
+}
+@media (max-width: 600px) {
+  .item-head { display: none; }
+  .item-row { grid-template-columns: 62px minmax(0, 1fr) 70px 28px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .item-row .i-desc { grid-column: 1 / -1; grid-row: 1; }
+}
+label.status { margin-top: 16px; }
 @media (max-width: 600px) {
   header.site, main { padding-left: 16px; padding-right: 16px; }
 }
@@ -201,6 +251,24 @@ footer { color: var(--muted); font-size: .8rem; padding-left: 64px; }
 .label .f.stack .v { font-size: 2em; }
 .label .f.stack .v:has(.ck) { font-size: 1.6em; line-height: 1.15; }
 .label .f.top .v.dims { font-size: 2.1em; white-space: nowrap; margin-top: .3em; }
+.label .pname { font-weight: bold; font-size: 1.15em; }
+.label .psum { font-size: .75em; margin-top: .3em; }
+
+/* Payload list: same frame look, but as tall as it needs to be (may span pages). */
+.label.plist { display: block; aspect-ratio: auto; height: auto; overflow: visible; }
+.label.plist > * { overflow: visible; }
+.plist .head { height: 9em; }
+.plist .r-meta { min-height: 8.5em; }
+.plist .r-meta .v { font-size: 2em; }
+.plist table { width: 100%; border-collapse: collapse; font-size: 1.9em; border-bottom: 0; }
+.plist th, .plist td { padding: .3em .55em; text-align: left; vertical-align: top; border-bottom: .06em solid #888; }
+.plist th { font-size: .8em; border-bottom: .12em solid #000; white-space: nowrap; }
+.plist td { overflow-wrap: anywhere; }
+.plist .num { text-align: right; white-space: nowrap; width: 1%; }
+.plist tfoot td { font-weight: bold; border-top: .12em solid #000; border-bottom: .1em solid #000; }
+.plist .empty { color: #666; }
+.plist .foot { height: 3.4em; }
+.plist tr { break-inside: avoid; }
 .label .r-meta { grid-template-columns: repeat(4, 1fr); }
 .label .f { padding: .7em 1em; border-right: .2em solid #000; min-width: 0; overflow: hidden; }
 .label .f:last-child { border-right: 0; }
@@ -223,7 +291,7 @@ footer { color: var(--muted); font-size: .8rem; padding-left: 64px; }
 .label .foot div { font-size: 1.1em; }
 .label .foot b { font-size: 1.25em; margin-right: .6em; }
 
-/* ---------- print: two A4 landscape pages, labels only ---------- */
+/* ---------- print: A4 landscape, two label pages plus the payload list ---------- */
 @page { size: A4 landscape; margin: 10mm; }
 @media print {
   :root { color-scheme: light; }
@@ -234,4 +302,6 @@ footer { color: var(--muted); font-size: .8rem; padding-left: 64px; }
   .sheet { width: 277mm; margin: 0; box-shadow: none; break-inside: avoid; }
   .sheet:not(:last-child) { break-after: page; }
   .label { font-size: 2.77mm; width: 277mm; height: 187mm; aspect-ratio: auto; }
+  .sheet.list { break-inside: auto; }
+  .label.plist { height: auto; }
 }
