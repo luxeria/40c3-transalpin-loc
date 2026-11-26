@@ -34,7 +34,7 @@
     <h2>Your containers</h2>
     <ul id="containers"></ul>
     <button type="button" id="btnNewSide">+ New container</button>
-    <p class="hint">Saved in this browser only. Click a status to change it.</p>
+    <p class="hint">Saved in this browser only. Click a status to change it. Printed or mailed containers are locked.</p>
   </aside>
 
   <div class="col-form no-print">
@@ -60,6 +60,8 @@
     <form id="form" novalidate>
     <div class="step">
       <h2 class="step-title">Fill out the form <small>one container at a time</small></h2>
+
+      <p id="lockNote" class="lock-note" hidden><b>Locked.</b> This container is marked as printed or mailed, so it can no longer be changed. To edit it, untick "Printed" and "Mailed" in steps 3 and 4 (or click the status in the list on the left) - and then print and mail it again.</p>
 
       <fieldset>
         <legend>FRAME <small>The container itself</small></legend>
@@ -179,7 +181,7 @@
       <p class="hint">Page 1 is the <b>outbound</b> label: attach it now. Page 2 is the <b>return</b> label: put it inside the container or tape it behind the first one, and attach it in Hamburg before teardown. The pages after that are the <b>payload list</b> (one or more sheets, depending on its length): put them inside the container, on top of the content.</p>
       <p id="printNudge" class="nudge" hidden>Did the pages come out? Then tick "Printed" below and continue with step 4.</p>
       <label class="radio status"><input type="checkbox" id="stPrinted">
-        <span><b>Printed</b> - the labels of this container are printed and attached.</span></label>
+        <span><b>Printed</b> - the labels of this container are printed and attached. Locks the form.</span></label>
       <p id="printedStale" class="error" hidden>You changed this container after marking it as printed. Please print it again - the FCS on the old label no longer matches.</p>
     </div>
     </form>
@@ -203,7 +205,7 @@
       <p class="hint">No mail program on this device, or the draft comes up empty or cut off (this can happen with long lists)? Use "Copy sheet as text" and paste it into a mail to yourself, CC <code>info@luxeria.ch</code>. Send one mail per container.</p>
       <p id="mailNudge" class="nudge" hidden>Mail sent? Then tick "Mailed" below.</p>
       <label class="radio status"><input type="checkbox" id="stMailed">
-        <span><b>Mailed</b> - the transport sheet of this container is sent.</span></label>
+        <span><b>Mailed</b> - the transport sheet of this container is sent. Locks the form.</span></label>
       <p id="mailedStale" class="error" hidden>You changed this container after marking it as mailed. Please send the sheet again, so our list matches your label.</p>
       <p class="error" id="mailError" role="alert" hidden></p>
     </section>

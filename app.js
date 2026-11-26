@@ -435,6 +435,11 @@ function render() {
   }
   $('totalValue').textContent = 'CHF ' + money(d.value);
 
+  // A container marked as printed or mailed is locked, so label, mail and data stay in sync.
+  const locked = isLocked(c);
+  for (const fs of document.querySelectorAll('#form fieldset')) fs.disabled = locked;
+  $('lockNote').hidden = !locked;
+
   // Status checkboxes in steps 3 and 4.
   for (const [key, box, note] of [['printed', 'stPrinted', 'printedStale'], ['mailed', 'stMailed', 'mailedStale']]) {
     const st = statusOf(c[key], d.fcs);
@@ -444,6 +449,8 @@ function render() {
 
   renderSidebar();
 }
+
+const isLocked = (c) => !!(c.printed || c.mailed);
 
 // Switch the form to the current container.
 function showCurrent() {
@@ -500,13 +507,23 @@ function showError(id, msg) {
 // Returns true if the form is complete; otherwise points the user at the first problem.
 function validate(errorId) {
   const form = $('form');
-  if (form.checkValidity()) { showError(errorId, ''); return true; }
-  const first = form.querySelector(':invalid:not(fieldset)');
-  showError(errorId, 'The form is not complete yet - please check the highlighted fields.');
-  form.classList.add('validated');
-  form.reportValidity();
-  first?.scrollIntoView({ block: 'center' });
-  return false;
+  // Disabled fields are skipped by the browser's validation, so unlock for the check.
+  const locked = isLocked(current());
+  const sets = [...form.querySelectorAll('fieldset')];
+  for (const fs of sets) fs.disabled = false;
+  const ok = form.checkValidity();
+  if (ok) showError(errorId, '');
+  else if (locked) {
+    showError(errorId, 'The form is not complete, but this container is locked. Untick "Printed" and "Mailed" to edit it.');
+  } else {
+    const first = form.querySelector(':invalid:not(fieldset)');
+    showError(errorId, 'The form is not complete yet - please check the highlighted fields.');
+    form.classList.add('validated');
+    form.reportValidity();
+    first?.scrollIntoView({ block: 'center' });
+  }
+  for (const fs of sets) fs.disabled = locked;
+  return ok;
 }
 
 /* ---------- theme: light by default, dark on request ---------- */
@@ -633,7 +650,6 @@ function init() {
   });
 
   window.addEventListener('afterprint', () => {
-    if (!$('form').checkValidity()) return;
     $('printNudge').hidden = false;
     $('mail').classList.add('highlight');
   });

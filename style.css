@@ -107,6 +107,9 @@ pre.example {
   .item-row .i-desc { grid-column: 1 / -1; grid-row: 1; }
 }
 label.status { margin-top: 16px; }
+.lock-note { border: 2px solid var(--navy); border-radius: 6px; padding: 10px 14px; margin: 0 0 20px; background: var(--card); font-size: .9rem; }
+fieldset:disabled { opacity: .6; }
+fieldset:disabled :is(input, textarea, button) { cursor: not-allowed; }
 @media (max-width: 600px) {
   header.site, main { padding-left: 16px; padding-right: 16px; }
 }
