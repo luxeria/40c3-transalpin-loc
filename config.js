@@ -9,15 +9,16 @@ const CONFIG = {
   collectorMail: 'info@luxeria.ch',
 
   // Suggestions for the "Assembly" field. Free text is always allowed.
-  // TODO: replace with the real list of Transalpin assemblies.
   assemblies: [
+    'Basel CCC',
+    'CCC-CH',
+    'CCCZH',
+    'Chaos Computer Club Bern',
+    'Lego-Abteil',
     'Luxeria',
-    'Bitwäscherei',
-    'CCC Zürich',
-    'Chaostreff Bern',
-    'Coredump',
-    'FIXME',
-    'Ruum42',
+    'Odenwilusenz',
+    'SGMK',
+    'Uwu-Space',
   ],
 
   // Handling flags offered as checkboxes in the "Options" section.

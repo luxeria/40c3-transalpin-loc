@@ -87,6 +87,40 @@ function ruler() {
   return h('div.ruler', tens, ones);
 }
 
+// The one-line machine-readable copy of a sheet: used in the mail and in the QR code.
+function machineLine(d) {
+  return 'VTP1 ' + JSON.stringify(d);
+}
+
+// QR code of `text` as an inline SVG element (null if the library is missing or the text is too long).
+function qrSvg(text) {
+  if (typeof qrcode !== 'function') return null;
+  let qr;
+  try {
+    qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+    qr = qrcode(0, 'M'); // version: auto, error correction: medium
+    qr.addData(text, 'Byte');
+    qr.make();
+  } catch { return null; }
+  const n = qr.getModuleCount();
+  const quiet = 4;
+  let path = '';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) if (qr.isDark(r, c)) path += `M${c} ${r}h1v1h-1z`;
+  }
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `${-quiet} ${-quiet} ${n + 2 * quiet} ${n + 2 * quiet}`);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'QR code with the data of this transport sheet');
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', path);
+  p.setAttribute('fill', '#000');
+  svg.append(p);
+  return svg;
+}
+
 function buildLabel(d, dir) {
   const out = dir === 'out';
   const dash = (s) => s || '-';
@@ -109,6 +143,11 @@ function buildLabel(d, dir) {
   const dims = d.dimL || d.dimW || d.dimH
     ? `${dash(d.dimL)} × ${dash(d.dimW)} × ${dash(d.dimH)} cm` : '-';
 
+  const dimsField = field('top', 'Frame Size:', 'L × W × H in cm', dims);
+  dimsField.querySelector('.v').classList.add('dims');
+
+  const qr = qrSvg(machineLine(d));
+
   const options = [
     d.flags.length ? h('div.flagrow', d.flags.map((f) => h('span.flag', f))) : null,
     d.notes ? h('div.notes', d.notes) : null,
@@ -127,16 +166,18 @@ function buildLabel(d, dir) {
       field('side', 'SRC ADDR:', 'Where it is picked up', out ? homeAddr : eventAddr)),
     h('div.row.r-meta',
       field('top', 'Weight:', 'in kilograms', d.weight ? d.weight + ' kg' : '-'),
-      field('top', 'Frame Size:', 'L × W × H in cm', dims),
+      dimsField,
       field('top', 'QoS Class:', 'EF = must arrive, AF = should arrive, BE = nice to have',
         d.qos ? [h('span.qos', d.qos), h('span.qosd', QOS[d.qos][1])] : '-'),
       field('top', 'Value:', 'Estimated worth in CHF, relevant for Carnet ATA',
         d.value ? 'CHF ' + d.value : '-')),
-    h('div.row.r-who',
-      field('side', 'Reply-To:', 'Who to call about this', contact.length ? contact : '-'),
-      field('side', 'Payload:', 'What is inside', dash(d.payload))),
-    h('div.row.r-opt',
-      field('side', 'Options:', 'Variable length, additional notes', options)),
+    h('div.lower',
+      h('div.row.r-who',
+        field('stack', 'Reply-To:', 'Who to call about this', contact.length ? contact : '-'),
+        field('stack', 'Payload:', 'What is inside', dash(d.payload))),
+      h('div.row.r-opt',
+        field('side', 'Options:', 'Variable length, additional notes', options)),
+      h('div.f.qr', h('div.kd', h('div.k', 'Frame Dump:'), h('div.d', 'This sheet, machine-readable')), qr)),
     h('div.foot',
       h('div', h('b', 'FCS: ' + d.fcs), ' Frame check sequence - ID of this transport sheet'),
       h('div', `Label lost or found? ${CONFIG.collectorMail}`))));
@@ -168,7 +209,7 @@ function sheetText(d) {
     `NOTES:      ${d.notes.replace(/\s*\n\s*/g, ' | ') || '-'}`,
     '',
     'Machine-readable copy, please leave as is:',
-    'VTP1 ' + JSON.stringify(d),
+    machineLine(d),
   ];
   return lines.join('\n');
 }

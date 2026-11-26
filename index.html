@@ -136,7 +136,7 @@
         <legend>Options <small>Variable length, additional notes</small></legend>
         <div class="flags" id="flags"></div>
         <label>Notes for the van crew
-          <textarea id="notes" rows="3" maxlength="240" placeholder="e.g. Do not lay on the side marked Y, transport standing upright."></textarea>
+          <textarea id="notes" rows="3" maxlength="180" placeholder="e.g. Do not lay on the side marked Y, transport standing upright."></textarea>
         </label>
       </fieldset>
 
@@ -190,6 +190,11 @@
       </div>
     </section>
     </div>
+
+    <footer>
+      Something missing or broken? Open an issue or a pull request on
+      <a href="https://github.com/luxeria/40c3-transalpin-loc">GitHub</a>.
+    </footer>
   </div>
 
   <div class="col-preview">
@@ -198,6 +203,7 @@
   </div>
 </main>
 
+<script src="vendor/qrcode.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>

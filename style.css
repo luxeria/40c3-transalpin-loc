@@ -157,6 +157,9 @@ button {
 button:hover { filter: brightness(1.1); }
 
 
+footer { color: var(--muted); font-size: .8rem; padding-left: 64px; }
+@media (max-width: 600px) { footer { padding-left: 0; } }
+
 .col-preview { position: sticky; top: 24px; min-width: 0; }
 .col-preview h2 { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
 
@@ -167,7 +170,7 @@ button:hover { filter: brightness(1.1); }
 .label {
   font-size: 1cqw;
   aspect-ratio: 277 / 187;
-  display: grid; grid-template-rows: 9em 3em 16.5em 10em 12.5em minmax(0, 1fr) 3.4em;
+  display: grid; grid-template-rows: 9em 3em 16.5em 10em minmax(0, 1fr) 3.4em;
   background: #fff; color: #000; font-family: var(--mono); line-height: 1.2;
   border: .3em solid #000; overflow: hidden;
 }
@@ -188,6 +191,16 @@ button:hover { filter: brightness(1.1); }
 
 .label .row { display: grid; }
 .label .r-addr, .label .r-who { grid-template-columns: 1fr 1fr; }
+/* Lower block: Reply-To / Payload and Options on the left, QR code on the right over both rows. */
+.label .lower { display: grid; grid-template-columns: minmax(0, 1fr) 21.4em; grid-template-rows: 13em minmax(0, 1fr); }
+.label .lower > .row { grid-column: 1; min-height: 0; overflow: hidden; border-right: .2em solid #000; }
+.label .lower > .r-who { border-bottom: .2em solid #000; }
+.label .lower > .qr { grid-column: 2; grid-row: 1 / 3; border-right: 0; display: flex; flex-direction: column; }
+.label .qr svg { display: block; width: 100%; flex: 1; min-height: 0; margin-top: .3em; background: #fff; }
+.label .f.stack .kd { display: flex; align-items: baseline; gap: 1em; }
+.label .f.stack .v { font-size: 2em; }
+.label .f.stack .v:has(.ck) { font-size: 1.6em; line-height: 1.15; }
+.label .f.top .v.dims { font-size: 2.1em; white-space: nowrap; margin-top: .3em; }
 .label .r-meta { grid-template-columns: repeat(4, 1fr); }
 .label .f { padding: .7em 1em; border-right: .2em solid #000; min-width: 0; overflow: hidden; }
 .label .f:last-child { border-right: 0; }
@@ -200,9 +213,9 @@ button:hover { filter: brightness(1.1); }
 .label .ck { display: inline-block; width: 4.9em; }
 .label .qos { border: .12em solid #000; padding: 0 .3em; margin-right: .4em; }
 .label .qosd { font-size: .55em; font-weight: normal; }
-.label .flagrow { display: flex; flex-wrap: wrap; gap: .3em .5em; margin-bottom: .3em; }
-.label .flag { border: .13em solid #000; padding: 0 .35em; font-weight: bold; }
-.label .notes { font-size: .85em; }
+.label .flagrow { display: flex; flex-wrap: wrap; gap: .2em .5em; margin-bottom: .25em; }
+.label .flag { border: .13em solid #000; padding: 0 .35em; font-weight: bold; font-size: .85em; }
+.label .notes { font-size: .72em; line-height: 1.1; }
 .label .foot {
   display: flex; justify-content: space-between; align-items: center; gap: 2em;
   padding: 0 1.2em; white-space: nowrap;

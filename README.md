@@ -4,7 +4,8 @@ Static web page where club members register an item for the Transalpin van
 (Zürich → Hamburg and back) and print two A4 labels in "ethernet frame" style:
 one for the way there, one for the way back.
 
-No build step, no dependencies, no server: everything runs in the browser.
+No build step, no server: everything runs in the browser. The only third-party
+code is the bundled QR code generator in `vendor/`.
 The only data that leaves the browser is the e-mail the member sends to
 themself with `info@luxeria.ch` in CC.
 
@@ -14,6 +15,7 @@ themself with `info@luxeria.ch` in CC.
 - `config.js` - **edit this**: assembly suggestions, handling flags, event name, collector address
 - `app.js` - label rendering, validation, mail draft
 - `style.css` - screen and print layout (A4 landscape)
+- `vendor/qrcode.js` - [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 1.4.4 by Kazuhiko Arase, MIT license
 
 ## Publish on GitHub Pages
 
@@ -23,6 +25,7 @@ themself with `info@luxeria.ch` in CC.
 ## Collecting the sheets
 
 Every mail ends with a line starting with `VTP1 ` followed by the item as JSON,
+and the QR code on each label holds that same line,
 so the collected mails can be turned into one list for load planning and the
 Carnet ATA. The `FCS` on the label is a CRC32 over the same data and identifies
 the sheet.
