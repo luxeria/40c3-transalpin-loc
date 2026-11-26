@@ -347,31 +347,73 @@ function buildLabel(d, dir, qr) {
       h('div', `Label lost or found? ${CONFIG.collectorMail}`))));
 }
 
-// Third sheet: the precise content list for the Carnet ATA. Flows over several pages if needed.
-function buildPayloadList(d) {
-  const num = (text) => h('td.num', text);
-  const rows = d.items.map((it, i) => h('tr',
-    num(i + 1), num(it[0] + ' ×'), h('td', it[1]), num(money(it[2])), num(money(round2(it[0] * it[2])))));
-  if (!rows.length) rows.push(h('tr', h('td'), h('td'), h('td.empty', 'No items yet'), h('td'), h('td')));
+// Payload list: the precise content for the Carnet ATA, on as many sheets as it needs.
+// Every sheet is a complete page of its own (header, IDs, table head), so nothing
+// depends on how a browser breaks a table across pages. Rows are placed by
+// measuring: a row that no longer fits starts the next sheet.
+const LIST_FALLBACK_ROWS = 11; // rows per sheet if measuring is impossible (preview not laid out)
 
+function listSheet(d) {
   const th = (cls, text) => h('th' + cls, text);
+  const tbody = h('tbody');
   const table = h('table',
     h('thead', h('tr', th('.num', 'Pos'), th('.num', 'Qty'), th('', 'Description'),
       th('.num', 'CHF / piece'), th('.num', 'CHF total'))),
-    h('tbody', rows),
-    h('tfoot', h('tr', h('td'), num(pieces(d) + ' ×'), h('td', 'Total'), h('td'), num(money(d.value)))));
-
-  return h('div.sheet.list', h('div.label.plist',
-    sheetHead('PAYLOAD', 'Sheet 3 - goes inside'),
+    tbody);
+  const area = h('div.parea', table);
+  const boxSub = h('div.t2');
+  const footLeft = h('div');
+  const logo = h('img');
+  logo.src = 'transalpin-bahnhofsschild-primitive.svg';
+  logo.alt = 'Transalpin';
+  const sheet = h('div.sheet.list', h('div.label.plist',
+    h('div.head',
+      logo,
+      h('div.title', h('div.t1', 'VAN-Transport-Protocol'),
+        h('div.t2', `VTP/2.0 - ${CONFIG.event} - one frame = one properly packaged container`)),
+      h('div.dir', h('div.t1', 'PAYLOAD'), boxSub)),
     h('div.row.r-meta',
       field('top', 'Container:', 'Name of this frame', dash(d.name)),
       field('top', 'Assembly:', 'Who it belongs to', dash(d.dstAssembly)),
       field('top', 'Reply-To:', 'Who to call about this', dash(d.cName)),
       field('top', 'FCS:', 'Same ID as on the labels', d.fcs)),
-    table,
-    h('div.foot',
-      h('div', 'Put this list inside the container, on top of the content.'),
+    area,
+    h('div.foot', footLeft,
       h('div', `Content list for the Carnet ATA - ${d.weight ? d.weight + ' kg' : '-'} - ${dimsText(d)}`))));
+  return { sheet, area, table, tbody, boxSub, footLeft };
+}
+
+// Appends the payload list sheets to `host` (which must be in the document, for measuring).
+function appendPayloadList(host, d) {
+  const num = (text) => h('td.num', text);
+  const rows = d.items.map((it, i) => h('tr',
+    num(i + 1), num(it[0] + ' ×'), h('td', it[1]), num(money(it[2])), num(money(round2(it[0] * it[2])))));
+  if (!rows.length) rows.push(h('tr', h('td'), h('td'), h('td.empty', 'No items yet'), h('td'), h('td')));
+  const total = h('tr.total', h('td'), num(pieces(d) + ' ×'), h('td', 'Total'), h('td'), num(money(d.value)));
+  rows.push(total);
+
+  const pages = [];
+  const newPage = () => { const p = listSheet(d); host.append(p.sheet); pages.push(p); return p; };
+  let page = newPage();
+  for (const row of rows) {
+    page.tbody.append(row);
+    const limit = page.area.clientHeight;
+    const count = page.tbody.children.length;
+    // 3% reserve: print may wrap a line differently than the small preview.
+    const full = limit > 0 ? page.table.offsetHeight > limit * 0.97 : count > LIST_FALLBACK_ROWS;
+    if (full && count > 1) {
+      row.remove();
+      page = newPage();
+      page.tbody.append(row);
+    }
+  }
+
+  pages.forEach((p, i) => {
+    p.boxSub.textContent = `List ${i + 1}/${pages.length} - goes inside`;
+    p.footLeft.textContent = i < pages.length - 1
+      ? 'Continued on the next sheet.'
+      : 'Put this list inside the container, on top of the content.';
+  });
 }
 
 /* ---------- render everything that depends on the current container ---------- */
@@ -380,7 +422,8 @@ function render() {
   const c = current();
   const d = sheetData(c);
   const qr = sheetQr(d);
-  $('labels').replaceChildren(buildLabel(d, 'out', qr), buildLabel(d, 'back', qr), buildPayloadList(d));
+  $('labels').replaceChildren(buildLabel(d, 'out', qr), buildLabel(d, 'back', qr));
+  appendPayloadList($('labels'), d);
 
   // Line totals and grand total in the form.
   const rows = document.querySelectorAll('#items .item-row');

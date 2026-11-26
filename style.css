@@ -254,21 +254,17 @@ footer { color: var(--muted); font-size: .8rem; padding-left: 64px; }
 .label .pname { font-weight: bold; font-size: 1.15em; }
 .label .psum { font-size: .75em; margin-top: .3em; }
 
-/* Payload list: same frame look, but as tall as it needs to be (may span pages). */
-.label.plist { display: block; aspect-ratio: auto; height: auto; overflow: visible; }
-.label.plist > * { overflow: visible; }
-.plist .head { height: 9em; }
-.plist .r-meta { min-height: 8.5em; }
+/* Payload list sheets: same frame and size as a label; the script fills each
+   sheet with as many rows as fit into .parea. */
+.label.plist { grid-template-rows: 9em 8.5em minmax(0, 1fr) 3.4em; }
 .plist .r-meta .v { font-size: 2em; }
-.plist table { width: 100%; border-collapse: collapse; font-size: 1.9em; border-bottom: 0; }
-.plist th, .plist td { padding: .3em .55em; text-align: left; vertical-align: top; border-bottom: .06em solid #888; }
+.plist table { width: 100%; border-collapse: collapse; font-size: 1.75em; }
+.plist th, .plist td { padding: .25em .55em; text-align: left; vertical-align: top; border-bottom: .06em solid #888; }
 .plist th { font-size: .8em; border-bottom: .12em solid #000; white-space: nowrap; }
 .plist td { overflow-wrap: anywhere; }
 .plist .num { text-align: right; white-space: nowrap; width: 1%; }
-.plist tfoot td { font-weight: bold; border-top: .12em solid #000; border-bottom: .1em solid #000; }
+.plist tr.total td { font-weight: bold; border-top: .12em solid #000; border-bottom: .12em solid #000; }
 .plist .empty { color: #666; }
-.plist .foot { height: 3.4em; }
-.plist tr { break-inside: avoid; }
 .label .r-meta { grid-template-columns: repeat(4, 1fr); }
 .label .f { padding: .7em 1em; border-right: .2em solid #000; min-width: 0; overflow: hidden; }
 .label .f:last-child { border-right: 0; }
@@ -291,7 +287,7 @@ footer { color: var(--muted); font-size: .8rem; padding-left: 64px; }
 .label .foot div { font-size: 1.1em; }
 .label .foot b { font-size: 1.25em; margin-right: .6em; }
 
-/* ---------- print: A4 landscape, two label pages plus the payload list ---------- */
+/* ---------- print: A4 landscape, one sheet per page ---------- */
 @page { size: A4 landscape; margin: 10mm; }
 @media print {
   :root { color-scheme: light; }
@@ -302,6 +298,4 @@ footer { color: var(--muted); font-size: .8rem; padding-left: 64px; }
   .sheet { width: 277mm; margin: 0; box-shadow: none; break-inside: avoid; }
   .sheet:not(:last-child) { break-after: page; }
   .label { font-size: 2.77mm; width: 277mm; height: 187mm; aspect-ratio: auto; }
-  .sheet.list { break-inside: auto; }
-  .label.plist { height: auto; }
 }
