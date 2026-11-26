@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transalpin VAN-Transport-Protocol</title>
+<link rel="icon" href="data:,">
+<script>
+// Set the theme before first paint: light unless the user switched to dark.
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('transalpin-vtp-theme'); } catch (e) {}
+  document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light';
+})();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site no-print">
+  <img src="transalpin-bahnhofsschild-primitive.svg" alt="Transalpin">
+  <div>
+    <h1>VAN-Transport-Protocol</h1>
+    <p>Register your goods for the Transalpin van and print the labels for your container.</p>
+  </div>
+  <div class="theme-switch" role="group" aria-label="Colour theme">
+    <button type="button" data-theme-choice="light">Light</button>
+    <button type="button" data-theme-choice="dark">Dark</button>
+  </div>
+</header>
+
+<main>
+  <div class="col-form no-print">
+
+    <div class="step">
+      <h2 class="step-title">Read the intro</h2>
+
+    <section class="warn">
+      <h3>RFC 2119: You MUST package your stuff properly</h3>
+      <ul>
+        <li><strong>One closed, sturdy container per label</strong> - box, crate or case. No loose items, no open bags, no "it's just a cable".</li>
+        <li>It must survive being <strong>stacked, pushed and driven 900&nbsp;km</strong>. Pad fragile content and close the lid for real (tape, straps, latches).</li>
+        <li>Each container needs its <strong>own registration and its own labels</strong>. Several containers = fill in the form several times.</li>
+        <li>Stick the label on a <strong>side that stays visible</strong> when stacked - not on the top, not on the bottom.</li>
+      </ul>
+      <p>Improperly packaged frames may be dropped at ingress by the van crew.</p>
+    </section>
+
+    <p class="hint">Nothing is uploaded: this page runs entirely in your browser and has no server behind it. The e-mail in step 4 is the only way your registration reaches us.</p>
+    </div>
+
+    <form id="form" novalidate>
+    <div class="step">
+      <h2 class="step-title">Fill out the form <small>one form per container</small></h2>
+
+      <fieldset>
+        <legend>DST ADDR <small>Where it goes</small></legend>
+        <div class="grid2">
+          <label>Location
+            <input id="dstLocation" value="Messe Hamburg" required maxlength="40">
+          </label>
+          <label>Habitat
+            <input id="dstHabitat" value="Transalpin" required maxlength="40">
+          </label>
+        </div>
+        <label>Assembly
+          <input id="dstAssembly" list="assemblies" placeholder="e.g. Luxeria" required maxlength="40" autocomplete="off">
+          <span class="hint">Start typing to pick from the list - or enter any other name.</span>
+        </label>
+        <datalist id="assemblies"></datalist>
+      </fieldset>
+
+      <fieldset>
+        <legend>SRC ADDR <small>Where it is picked up</small></legend>
+        <label>Aggregation point
+          <input id="srcAddr" value="Bitwäscherei, Zürich" required maxlength="60">
+          <span class="hint">The van loads at the Bitwäscherei in Zürich. Only change this if the van crew agreed to another pickup. This is also where your item returns to.</span>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>PAYLOAD <small>What is inside</small></legend>
+        <label>Content
+          <input id="payload" placeholder="e.g. 3D printer, LED matrix, tools" required maxlength="80">
+          <span class="hint">Short and honest - customs wants to know what is in the Carnet ATA.</span>
+        </label>
+        <div class="grid2">
+          <label>Weight <small>in kilograms</small>
+            <span class="unit"><input id="weight" type="number" min="0.1" max="500" step="0.1" required inputmode="decimal"><i>kg</i></span>
+          </label>
+          <label>Value <small>estimated worth in CHF</small>
+            <span class="unit"><i>CHF</i><input id="value" type="number" min="0" step="1" required inputmode="numeric"></span>
+          </label>
+        </div>
+        <label>Frame Size <small>L × W × H in cm, outer dimensions of the container</small>
+          <span class="dims">
+            <input id="dimL" type="number" min="1" max="500" step="1" required placeholder="L" aria-label="Length in cm" inputmode="numeric"> ×
+            <input id="dimW" type="number" min="1" max="500" step="1" required placeholder="W" aria-label="Width in cm" inputmode="numeric"> ×
+            <input id="dimH" type="number" min="1" max="500" step="1" required placeholder="H" aria-label="Height in cm" inputmode="numeric"> <i>cm</i>
+          </span>
+        </label>
+        <p class="hint">A rough estimate of the value is fine. We need it, together with weight and size, for load planning and to file the Carnet ATA (customs paper for crossing the border).</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>QoS Class <small>How important is it that this arrives?</small></legend>
+        <p class="hint">If the van is full, frames with the lowest priority are dropped first: they stay at the aggregation point and are not picked up. Be fair - not everything is EF.</p>
+        <label class="radio"><input type="radio" name="qos" value="EF" required>
+          <span><b>EF</b> - Expedited Forwarding: <b>must arrive.</b> Without it your assembly does not work.</span></label>
+        <label class="radio"><input type="radio" name="qos" value="AF">
+          <span><b>AF</b> - Assured Forwarding: <b>should arrive.</b> Important, but you would survive without it.</span></label>
+        <label class="radio"><input type="radio" name="qos" value="BE">
+          <span><b>BE</b> - Best Effort: <b>nice to have.</b> First to be left behind if the van is full.</span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Reply-To <small>Who to call about this</small></legend>
+        <div class="grid2">
+          <label>Name / Nick
+            <input id="cName" required maxlength="40" autocomplete="nickname">
+          </label>
+          <label>DECT <small>optional</small>
+            <input id="cDect" maxlength="12" inputmode="numeric">
+          </label>
+          <label>Matrix <small>optional</small>
+            <input id="cMatrix" placeholder="@you:example.org" maxlength="60">
+          </label>
+          <label>Phone <small>optional</small>
+            <input id="cPhone" type="tel" placeholder="+41 …" maxlength="24" autocomplete="tel">
+          </label>
+        </div>
+        <p class="hint" id="contactHint">Only the name is required. Please add at least one way to reach you if you can - Matrix or phone also work before the event. This will be printed on the label.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Options <small>Variable length, additional notes</small></legend>
+        <div class="flags" id="flags"></div>
+        <label>Notes for the van crew
+          <textarea id="notes" rows="3" maxlength="240" placeholder="e.g. Do not lay on the side marked Y, transport standing upright."></textarea>
+        </label>
+      </fieldset>
+
+    </div>
+
+    <div class="step">
+      <h2 class="step-title">Print the pages <small>2 × A4: way there and way back</small></h2>
+
+      <fieldset class="confirm">
+        <label class="radio"><input type="checkbox" id="packed" required>
+          <span>I confirm that this item is <b>PROPERLY PACKAGED</b> in a closed, sturdy container, and that I will attach the label to a visible side.</span></label>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="primary">Print labels (2 × A4)</button>
+      </div>
+      <p class="error" id="formError" role="alert" hidden></p>
+      <p class="hint">Page 1 is the <b>outbound</b> label: attach it now. Page 2 is the <b>return</b> label: put it inside the container or tape it behind the first one, and attach it in Hamburg before teardown.</p>
+    </div>
+    </form>
+
+    <div class="step">
+      <h2 class="step-title">E-mail the info <small>to yourself, CC info@luxeria.ch</small></h2>
+
+    <section class="mail" id="mail">
+      <p id="mailNudge" class="nudge" hidden>Labels printed? Then one thing is left - without this mail we do not know your item exists.</p>
+      <p>Please send the transport sheet <strong>to yourself</strong> and put <strong><code>info@luxeria.ch</code> in CC</strong>.</p>
+      <ul>
+        <li><strong>Backup:</strong> if a label gets lost or torn off, we can still tell whose container it is - and so can you.</li>
+        <li><strong>Planning:</strong> Luxeria collects all sheets into one list with value, weight and dimensions. That list is what the van crew uses for load planning and for the Carnet ATA.</li>
+      </ul>
+      <label>Your e-mail address
+        <input id="email" type="email" placeholder="you@example.org" autocomplete="email">
+      </label>
+      <div class="actions">
+        <button type="button" class="primary" id="btnMail">Open e-mail draft</button>
+        <button type="button" id="btnCopy">Copy sheet as text</button>
+      </div>
+      <p class="hint">No mail program on this device? Use "Copy sheet as text" and paste it into a mail to yourself, CC <code>info@luxeria.ch</code>. Send one mail per container.</p>
+      <p class="error" id="mailError" role="alert" hidden></p>
+    </section>
+    </div>
+
+    <div class="step">
+      <h2 class="step-title">Next container</h2>
+
+    <section class="next">
+      <p>More than one container? Once the mail for this item is sent, start the next one. Addresses and contact are kept.</p>
+      <div class="actions">
+        <button type="button" id="btnNew">Register another item</button>
+      </div>
+    </section>
+    </div>
+  </div>
+
+  <div class="col-preview">
+    <h2 class="no-print">Preview</h2>
+    <div id="labels"></div>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
