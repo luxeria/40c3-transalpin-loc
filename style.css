@@ -96,7 +96,7 @@ button.icon:disabled { opacity: .3; cursor: default; }
 .item-row input { margin-top: 0 !important; }
 .item-head { font-size: .78rem; font-weight: 600; color: var(--muted); margin: 14px 0 4px; }
 .i-total { font-size: .85rem; color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.total { font-size: 1.05rem; margin: 4px 0 8px; }
+p.total { font-size: 1.05rem; margin: 4px 0 8px; }
 pre.example {
   font: .78rem/1.5 var(--mono); color: var(--muted); margin: 6px 0 4px; padding: 8px 10px;
   background: var(--bg); border-radius: 4px; overflow-x: auto;
