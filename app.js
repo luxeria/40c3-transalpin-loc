@@ -267,17 +267,13 @@ function qrSvg(text, level) {
   return svg;
 }
 
-// QR code for a sheet. Long item lists make the code too dense to scan from a
-// label, so above a size limit the items are left out (the mail has them all).
-const QR_MAX_CHARS = 1100;
+// QR code for a sheet. It never contains the item list: long lists make the
+// code too dense to scan from a label. The list lives in the mailed sheet and
+// is matched to the label by the FCS, which is computed over the full data.
 function sheetQr(d) {
-  const full = asciiJson(machineLine(d));
-  if (full.length <= QR_MAX_CHARS) {
-    const svg = qrSvg(full, 'M') || qrSvg(full, 'L');
-    if (svg) return { svg, complete: true };
-  }
-  const short = asciiJson(machineLine({ ...d, items: [], itemsOmitted: d.items.length }));
-  return { svg: qrSvg(short, 'M') || qrSvg(short, 'L'), complete: false };
+  const { items, ...rest } = d;
+  const text = asciiJson(machineLine({ ...rest, itemCount: items.length }));
+  return qrSvg(text, 'M') || qrSvg(text, 'L');
 }
 
 function sheetHead(boxTitle, boxSub) {
@@ -344,8 +340,8 @@ function buildLabel(d, dir, qr) {
         field('side', 'Options:', 'Variable length, additional notes', options)),
       h('div.f.qr',
         h('div.kd', h('div.k', 'Frame Dump:'),
-          h('div.d', qr.complete ? 'This sheet, machine-readable' : 'Machine-readable, without payload list')),
-        qr.svg ? qr.svg.cloneNode(true) : null)),
+          h('div.d', 'Machine-readable, items: see mail')),
+        qr ? qr.cloneNode(true) : null)),
     h('div.foot',
       h('div', h('b', 'FCS: ' + d.fcs), ' Frame check sequence - ID of this transport sheet'),
       h('div', `Label lost or found? ${CONFIG.collectorMail}`))));

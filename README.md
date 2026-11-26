@@ -34,9 +34,9 @@ the Carnet ATA.
   total in CHF.
 - `fcs` is a CRC32 over the rest of the data. It is printed on the labels and
   the payload list and identifies the sheet.
-- The QR code on each label holds the same line, with non-ASCII characters
-  written as JSON `\uXXXX` escapes (any JSON parser turns them back into
-  umlauts). For long item lists the QR code leaves the items out and carries
-  `"itemsOmitted": <count>` instead; the mail always has the full list.
+- The QR code on each label holds the same line without `items` (long lists
+  made the code unscannable) and with `"itemCount": <count>` instead. Match it
+  to the mailed sheet by `fcs` to get the item list. Non-ASCII characters are
+  written as JSON `\uXXXX` escapes; any JSON parser turns them back into umlauts.
 - Sheets mailed with the first version of the page start with `VTP1 ` and have
   a single `payload` text and `value` instead of `items`.
